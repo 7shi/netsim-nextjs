@@ -12,6 +12,7 @@ type VM = {
   id: number
   name: string
   os: OS
+  mac: string
   isDHCP?: boolean
   ip?: string
 }
@@ -32,9 +33,7 @@ type Position = {
 }
 
 export function NetworkSimulator() {
-  const [vms, setVms] = useState<VM[]>([
-    { id: 0, name: "DHCP Server", os: 'DHCP', isDHCP: true, ip: '192.168.1.1' }
-  ])
+  const [vms, setVms] = useState<VM[]>([]);
   const [nextId, setNextId] = useState(1)
   const [packets, setPackets] = useState<Packet[]>([])
   const [selectedVM, setSelectedVM] = useState<number | null>(null)
@@ -45,8 +44,19 @@ export function NetworkSimulator() {
   const packetListRef = useRef<HTMLDivElement>(null)
   const zapRefs = useRef<{ [key: string]: SVGSVGElement | null }>({})
 
+  const generateMACAddress = () => {
+    return Array.from({length: 6}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(':');
+  }
+
+  useEffect(() => {
+    if (vms.length) return
+    setVms([
+      { id: 0, name: "DHCP Server", os: 'DHCP', mac: generateMACAddress(), isDHCP: true, ip: '192.168.1.1' }
+    ])
+  }, [vms])
+
   const addVM = () => {
-    const newVM = { id: nextId, name: `VM${nextId}`, os: null }
+    const newVM = { id: nextId, name: `VM${nextId}`, os: null, mac: generateMACAddress() }
     setVms([...vms, newVM])
     setNextId(nextId + 1)
   }
@@ -283,11 +293,12 @@ export function NetworkSimulator() {
                     )
                   )}
                 </div>
-                {vm.ip && (
-                  <div className="mt-2 text-xs text-gray-500">
-                    IP: {vm.ip}
-                  </div>
-                )}
+                <div className="mt-2 text-xs text-gray-500">
+                  MAC: {vm.mac}
+                  {vm.ip && (
+                    <span><br />IP: {vm.ip}</span>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
