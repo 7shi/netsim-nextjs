@@ -305,7 +305,7 @@ export function NetworkSimulator() {
         </div>
       </div>
       <div className="bg-gray-100 p-4 border-t border-gray-200">
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-4">
           <Select
             value={selectedVM?.toString() || ''}
             onValueChange={(value) => setSelectedVM(Number(value))}
