@@ -316,7 +316,7 @@ export function NetworkSimulator() {
           )}
         </div>
       </div>
-      <div className="bg-gray-100 p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200">
         <div className="flex items-center gap-4">
           <Select
             value={selectedVM?.toString() || ''}
@@ -350,14 +350,14 @@ export function NetworkSimulator() {
           </Button>
         </div>
       </div>
-      <div className="h-1/3 bg-gray-200 p-4 flex">
+      <div className="h-1/3 bg-gray-100 p-4 flex">
         <div className="w-1/2 pr-2 flex flex-col">
           <h2 className="text-xl font-semibold mb-2">Network Packets</h2>
           <div ref={packetListRef} className="flex-1 overflow-auto space-y-2 bg-white">
             {packets.map((packet) => (
               <div
                 key={packet.id}
-                className={`${getPacketColor(packet.type)} px-2 rounded text-sm cursor-pointer leading-tight font-bold ${selectedPacket?.id === packet.id ? 'ring-2 ring-yellow-400' : ''}`}
+                className={`${getPacketColor(packet.type)} px-2 rounded text-sm cursor-pointer leading-tight font-bold ${selectedPacket?.id === packet.id ? 'bg-gray-200' : ''}`}
                 onClick={() => setSelectedPacket(packet)}
               >
                 {packet.type}: {vms.find(vm => vm.id === packet.from)?.name} → {packet.to === -1 ? 'Broadcast' : vms.find(vm => vm.id === packet.to)?.name}
