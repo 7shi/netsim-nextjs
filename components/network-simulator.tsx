@@ -82,18 +82,13 @@ export function NetworkSimulator() {
 
   const getVMPosition = (vmId: number): Position | null => {
     const vmElement = vmRefs.current[vmId]
-    const gridContainer = containerRef.current?.querySelector('.grid')
-    if (!vmElement || !gridContainer) return null
+    if (!vmElement) return null
 
-    const gridRect = gridContainer.getBoundingClientRect()
-    const vmRect = vmElement.getBoundingClientRect()
-
-    const iconElement = vmElement.querySelector('.h-6.w-6') as HTMLElement
-    const iconRect = iconElement ? iconElement.getBoundingClientRect() : vmRect
-
+    const iconElement = vmElement.querySelector('svg.h-6.w-6')
+    const r = (iconElement ? iconElement : vmElement).getBoundingClientRect()
     return {
-      x: iconRect.left - gridRect.left + iconRect.width / 2,
-      y: iconRect.top - gridRect.top + iconRect.height / 2
+      x: r.left + r.width / 2,
+      y: r.top + r.height / 2
     }
   }
 
@@ -113,8 +108,9 @@ export function NetworkSimulator() {
         ? 4 * progress * progress * progress 
         : 1 - Math.pow(-2 * progress + 2, 3) / 2 // Cubic easing
 
-      const currentX = startX + (endX - startX) * easeProgress
-      const currentY = startY + (endY - startY) * easeProgress
+      const r = element.getBoundingClientRect()
+      const currentX = startX + (endX - startX) * easeProgress - r.width  / 2
+      const currentY = startY + (endY - startY) * easeProgress - r.height / 2
 
       element.style.transform = `translate(${currentX}px, ${currentY}px)`
 
@@ -307,7 +303,7 @@ export function NetworkSimulator() {
                       delete zapRefs.current[`zap-${fromVM.id}-${toVM.id}`]
                     }
                   }}
-                  className="absolute text-yellow-400"
+                  className="fixed text-yellow-400"
                   style={{
                     left: 0,
                     top: 0,
