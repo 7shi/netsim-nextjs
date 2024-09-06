@@ -15,9 +15,10 @@ type VM = {
   mac: string
   isDHCP?: boolean
   ip?: string
+  arpTable: { [ip: string]: { mac: string, expires: number } }
 }
 
-type PacketType = 'DHCP Discover' | 'DHCP Offer' | 'DHCP Request' | 'DHCP Acknowledge' | 'ICMP Request' | 'ICMP Reply'
+type PacketType = 'DHCP Discover' | 'DHCP Offer' | 'DHCP Request' | 'DHCP Acknowledge' | 'ICMP Request' | 'ICMP Reply' | 'ARP Request' | 'ARP Reply'
 
 type Packet = {
   id: number
@@ -52,12 +53,12 @@ export function NetworkSimulator() {
   useEffect(() => {
     if (vms.length) return
     setVms([
-      { id: 0, name: "DHCP Server", os: 'DHCP', mac: generateMACAddress(), isDHCP: true, ip: '192.168.1.1' }
+      { id: 0, name: "DHCP Server", os: 'DHCP', mac: generateMACAddress(), isDHCP: true, ip: '192.168.1.1', arpTable: {} }
     ])
   }, [vms])
 
   const addVM = () => {
-    const newVM = { id: nextId, name: `VM${nextId}`, os: null, mac: generateMACAddress() }
+    const newVM = { id: nextId, name: `VM${nextId}`, os: null, mac: generateMACAddress(), arpTable: {} }
     setVms([...vms, newVM])
     setNextId(nextId + 1)
   }
@@ -69,7 +70,7 @@ export function NetworkSimulator() {
   }
 
   const updateVMOS = async (id: number, os: OS) => {
-    setVms(prevVms => prevVms.map(vm => vm.id === id ? { ...vm, os } : vm))
+    setVms(prevVms => prevVms.map(vm => vm.id === id ? { ...vm, os, arpTable: {} } : vm))
 
     if (os !== null && os !== 'DHCP') {
       await runDHCPProcess(id)
@@ -150,13 +151,13 @@ export function NetworkSimulator() {
     return result
   }
 
-  const sendPacket = async (from: number, to: number | null, type: PacketType) => {
+  const sendPacket = async (from: number, to: number | null, type: PacketType, data?: any) => {
     const packet = { 
       id: Date.now(),
       from,
       to: to ?? -1,
       type,
-      data: generateRandomHexDump(type)
+      data: data ? JSON.stringify(data) : generateRandomHexDump(type)
     }
     setPackets(prev => [...prev, packet])
 
@@ -191,7 +192,7 @@ export function NetworkSimulator() {
       if (!zapRef) return
 
       zapRef.style.display = 'block'
-      zapRef.classList.remove('text-green-400', 'text-yellow-400', 'text-blue-400', 'text-purple-400')
+      zapRef.classList.remove('text-green-400', 'text-yellow-400', 'text-blue-400', 'text-purple-400', 'text-orange-400', 'text-pink-400')
       zapRef.classList.add(getPacketColor(type))
 
       await animateElement(zapRef, fromPosition.x, fromPosition.y, toPosition.x, toPosition.y, 1000)
@@ -211,6 +212,10 @@ export function NetworkSimulator() {
         return 'text-yellow-400'
       case 'ICMP Reply':
         return 'text-green-400'
+      case 'ARP Request':
+        return 'text-orange-400'
+      case 'ARP Reply':
+        return 'text-pink-400'
       default:
         return 'text-gray-400'
     }
@@ -225,14 +230,15 @@ export function NetworkSimulator() {
 
     // DHCP Offer
     await sendPacket(dhcpServer.id, vmId, 'DHCP Offer')
+    updateARPTable(vmId, dhcpServer.ip!, dhcpServer.mac)
 
     // DHCP Request (unicast to DHCP server)
     await sendPacket(vmId, dhcpServer.id, 'DHCP Request')
 
     // DHCP Acknowledge
-    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge')
+    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', { ip: `192.168.1.${dhcpIp}` })
 
-    // Assign IP address
+    // Assign IP address and update ARP table
     const newIp = `192.168.1.${dhcpIp}`
     setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: newIp } : vm))
     setDhcpIp(prevIp => {
@@ -241,10 +247,28 @@ export function NetworkSimulator() {
     })
   }
 
+  const updateARPTable = (vmId: number, ip: string, mac: string) => {
+    setVms(prevVms => prevVms.map(vm =>
+      vm.id === vmId
+        ? { ...vm, arpTable: { ...vm.arpTable, [ip]: { mac, expires: Date.now() + 300000 } } }
+        : vm
+    ))
+  }
+
   const sendPing = async () => {
     if (selectedVM !== null && targetVM !== null) {
-      await sendPacket(selectedVM, targetVM, 'ICMP Request')
-      await sendPacket(targetVM, selectedVM, 'ICMP Reply')
+      const sourceVM = vms.find(vm => vm.id === selectedVM)
+      const targetVMData = vms.find(vm => vm.id === targetVM)
+      if (sourceVM && targetVMData && sourceVM.ip && targetVMData.ip) {
+        if (!sourceVM.arpTable[targetVMData.ip] || sourceVM.arpTable[targetVMData.ip].expires < Date.now()) {
+          await sendPacket(selectedVM, null, 'ARP Request')
+          await sendPacket(targetVM, selectedVM, 'ARP Reply')
+          updateARPTable(selectedVM, targetVMData.ip, targetVMData.mac)
+        }
+        await sendPacket(selectedVM, targetVM, 'ICMP Request')
+        updateARPTable(targetVM, sourceVM.ip, sourceVM.mac)
+        await sendPacket(targetVM, selectedVM, 'ICMP Reply')
+      }
     }
   }
 
