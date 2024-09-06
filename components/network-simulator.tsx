@@ -269,18 +269,22 @@ export function NetworkSimulator() {
                 <div className="flex items-center justify-between">
                   <OSIcon os={vm.os} />
                   {!vm.isDHCP && (
-                    <Select
-                      value={vm.os || ''}
-                      onValueChange={(value) => updateVMOS(vm.id, value as OS)}
-                    >
-                      <SelectTrigger className="w-16 h-8">
-                        <SelectValue placeholder="OS" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="OS1">OS1</SelectItem>
-                        <SelectItem value="OS2">OS2</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    vm.os ? (
+                      <span className="text-sm font-medium">{vm.os}</span>
+                    ) : (
+                      <Select
+                        value={vm.os || ''}
+                        onValueChange={(value) => updateVMOS(vm.id, value as OS)}
+                      >
+                        <SelectTrigger className="w-16 h-8">
+                          <SelectValue placeholder="OS" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="OS1">OS1</SelectItem>
+                          <SelectItem value="OS2">OS2</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )
                   )}
                 </div>
                 {vm.ip && (
