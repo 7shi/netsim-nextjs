@@ -137,27 +137,120 @@ export function NetworkSimulator() {
     })
   }
 
-  const generateRandomHexDump = (type: PacketType) => {
-    const hexChars = '0123456789ABCDEF'
-    let result = `${type}\n`
-    for (let i = 0; i < 16; i++) {
-      for (let j = 0; j < 16; j++) {
-        result += hexChars[Math.floor(Math.random() * 16)]
-        result += hexChars[Math.floor(Math.random() * 16)]
-        result += ' '
-      }
-      result += '\n'
+  const generateEthernetHeader = (sourceMac: string, destMac: string, etherType: string): string => {
+    return `Ethernet Header:
+    Destination: ${destMac}
+    Source: ${sourceMac}
+    Type: ${etherType}`
+  }
+
+  const generateDHCPPacket = (type: 'Discover' | 'Offer' | 'Request' | 'Acknowledge', clientMac: string, serverMac: string = '00:00:00:00:00:00', serverIp?: string, offeredIp?: string): string => {
+    const ethernetHeader = generateEthernetHeader(clientMac, type === 'Discover' ? 'FF:FF:FF:FF:FF:FF' : serverMac, '0800')
+    const opcode = type === 'Discover' || type === 'Request' ? '01' : '02'
+    const transactionId = Math.floor(Math.random() * 0xFFFFFFFF).toString(16).padStart(8, '0')
+    let options = ''
+
+    switch (type) {
+      case 'Discover':
+        options = '350101'  // DHCP Discover
+        break
+      case 'Offer':
+        options = '350102'  // DHCP Offer
+        break
+      case 'Request':
+        options = '350103'  // DHCP Request
+        break
+      case 'Acknowledge':
+        options = '350105'  // DHCP ACK
+        break
     }
-    return result
+
+    return `${ethernetHeader}
+
+DHCP ${type}:
+Op: ${opcode} HType: 01 HLen: 06 Hops: 00
+${transactionId} Secs: 0000 Flags: 0000
+CIAddr: 00000000 YIAddr: ${offeredIp ? offeredIp.split('.').map(octet => parseInt(octet).toString(16).padStart(2, '0')).join('') : '00000000'}
+SIAddr: ${serverIp ? serverIp.split('.').map(octet => parseInt(octet).toString(16).padStart(2, '0')).join('') : '00000000'} GIAddr: 00000000
+CHAddr: ${clientMac.replace(/:/g, '')}0000000000000000
+Options: ${options}`
+  }
+
+  const generateARPPacket = (type: 'Request' | 'Reply', senderMac: string, senderIp: string, targetMac: string, targetIp: string): string => {
+    const ethernetHeader = generateEthernetHeader(senderMac, type === 'Request' ? 'FF:FF:FF:FF:FF:FF' : targetMac, '0806')
+    const opcode = type === 'Request' ? '0001' : '0002'
+    return `${ethernetHeader}
+
+ARP ${type}:
+Hardware type: 0001 (Ethernet)
+Protocol type: 0800 (IPv4)
+Hardware size: 06 Protocol size: 04
+Opcode: ${opcode}
+Sender MAC address: ${senderMac}
+Sender IP address: ${senderIp}
+Target MAC address: ${targetMac}
+Target IP address: ${targetIp}`
+  }
+
+  const generateICMPPacket = (type: 'Request' | 'Reply', sourceMac: string, destMac: string, sourceIp: string, destIp: string): string => {
+    const ethernetHeader = generateEthernetHeader(sourceMac, destMac, '0800')
+    const typeCode = type === 'Request' ? '08 00' : '00 00'
+    const identifier = Math.floor(Math.random() * 0xFFFF).toString(16).padStart(4, '0')
+    const sequenceNumber = Math.floor(Math.random() * 0xFFFF).toString(16).padStart(4, '0')
+    return `${ethernetHeader}
+
+ICMP ${type}:
+Type: ${typeCode} (Echo ${type})
+Code: 0
+Checksum: 0000
+Identifier: ${identifier}
+Sequence number: ${sequenceNumber}
+Data:
+  abcdefghijklmnopqrstuvwabcdefghi
+Source: ${sourceIp}
+Destination: ${destIp}`
   }
 
   const sendPacket = async (from: number, to: number | null, type: PacketType, data?: any) => {
+    const fromVM = vms.find(vm => vm.id === from)
+    const toVM = to !== null ? vms.find(vm => vm.id === to) : null
+
+    let packetData: string
+    switch (type) {
+      case 'DHCP Discover':
+        packetData = generateDHCPPacket('Discover', fromVM!.mac, '00:00:00:00:00:00')
+        break
+      case 'DHCP Offer':
+        packetData = generateDHCPPacket('Offer', toVM!.mac, fromVM!.mac, fromVM!.ip, data.offeredIp)
+        break
+      case 'DHCP Request':
+        packetData = generateDHCPPacket('Request', fromVM!.mac, '00:00:00:00:00:00', undefined, data.offeredIp)
+        break
+      case 'DHCP Acknowledge':
+        packetData = generateDHCPPacket('Acknowledge', toVM!.mac, fromVM!.mac, fromVM!.ip, data.offeredIp)
+        break
+      case 'ARP Request':
+        packetData = generateARPPacket('Request', fromVM!.mac, fromVM!.ip!, '00:00:00:00:00:00', data.targetIp)
+        break
+      case 'ARP Reply':
+        packetData = generateARPPacket('Reply', fromVM!.mac, fromVM!.ip!, toVM!.mac, toVM!.ip!)
+        break
+      case 'ICMP Request':
+        packetData = generateICMPPacket('Request', fromVM!.mac, toVM!.mac, fromVM!.ip!, toVM!.ip!)
+        break
+      case 'ICMP Reply':
+        packetData = generateICMPPacket('Reply', fromVM!.mac, toVM!.mac, fromVM!.ip!, toVM!.ip!)
+        break
+      default:
+        packetData = 'Unknown packet type'
+    }
+
     const packet = { 
       id: Date.now(),
       from,
       to: to ?? -1,
       type,
-      data: data ? JSON.stringify(data) : generateRandomHexDump(type)
+      data: packetData
     }
     setPackets(prev => [...prev, packet])
 
@@ -223,24 +316,26 @@ export function NetworkSimulator() {
 
   const runDHCPProcess = async (vmId: number) => {
     const dhcpServer = vms.find(vm => vm.isDHCP)
-    if (!dhcpServer) return
+    if (!dhcpServer || !dhcpServer.ip) return
 
     // DHCP Discover (broadcast)
     await sendPacket(vmId, null, 'DHCP Discover')
 
+    // 割り当て予定のIPアドレスを生成
+    const offeredIp = `192.168.1.${dhcpIp}`
+
     // DHCP Offer
-    await sendPacket(dhcpServer.id, vmId, 'DHCP Offer')
-    updateARPTable(vmId, dhcpServer.ip!, dhcpServer.mac)
+    await sendPacket(dhcpServer.id, vmId, 'DHCP Offer', { offeredIp })
+    updateARPTable(vmId, dhcpServer.ip, dhcpServer.mac)
 
     // DHCP Request (unicast to DHCP server)
-    await sendPacket(vmId, dhcpServer.id, 'DHCP Request')
+    await sendPacket(vmId, dhcpServer.id, 'DHCP Request', { offeredIp })
 
     // DHCP Acknowledge
-    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', { ip: `192.168.1.${dhcpIp}` })
+    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', { offeredIp })
 
     // Assign IP address and update ARP table
-    const newIp = `192.168.1.${dhcpIp}`
-    setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: newIp } : vm))
+    setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: offeredIp } : vm))
     setDhcpIp(prevIp => {
       const nextIp = prevIp + 1
       return nextIp > 254 ? 11 : nextIp
@@ -261,7 +356,7 @@ export function NetworkSimulator() {
       const targetVMData = vms.find(vm => vm.id === targetVM)
       if (sourceVM && targetVMData && sourceVM.ip && targetVMData.ip) {
         if (!sourceVM.arpTable[targetVMData.ip] || sourceVM.arpTable[targetVMData.ip].expires < Date.now()) {
-          await sendPacket(selectedVM, null, 'ARP Request')
+          await sendPacket(selectedVM, null, 'ARP Request', { targetIp: targetVMData.ip })
           await sendPacket(targetVM, selectedVM, 'ARP Reply')
           updateARPTable(selectedVM, targetVMData.ip, targetVMData.mac)
         }
@@ -406,7 +501,7 @@ export function NetworkSimulator() {
           </div>
         </div>
         <div className="w-1/2 pl-2 flex flex-col">
-          <h2 className="text-xl font-semibold mb-2">Packet Hex Dump</h2>
+          <h2 className="text-xl font-semibold mb-2">Packet Dump</h2>
           <div className="flex-1 overflow-auto bg-white p-2 rounded">
             {selectedPacket ? (
               <pre className="text-xs font-mono">{selectedPacket.data}</pre>
