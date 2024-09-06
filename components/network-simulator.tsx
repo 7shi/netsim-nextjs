@@ -259,9 +259,9 @@ export function NetworkSimulator() {
       <div className="flex-1 overflow-auto p-4">
         <h1 className="text-2xl font-bold mb-4">Network Simulator</h1>
         <Button onClick={addVM} className="mb-4">Add Virtual Machine</Button>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8 relative">
+        <div className="flex flex-wrap gap-4 mb-8 relative">
           {vms.map(vm => (
-            <Card key={vm.id} className="p-2" ref={el => {
+            <Card key={vm.id} className="p-2 w-48" ref={el => {
               if (el) {
                 vmRefs.current[vm.id] = el
               } else {
