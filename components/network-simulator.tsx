@@ -319,6 +319,7 @@ export function NetworkSimulator() {
               ))}
             </SelectContent>
           </Select>
+          <span>→</span>
           <Select
             value={targetVM?.toString() || ''}
             onValueChange={(value) => setTargetVM(Number(value))}
