@@ -344,7 +344,7 @@ export function NetworkSimulator() {
             {packets.map((packet) => (
               <div
                 key={packet.id}
-                className={`${getPacketColor(packet.type)} text-white px-2 py-1 rounded text-sm cursor-pointer ${selectedPacket?.id === packet.id ? 'ring-2 ring-yellow-400' : ''}`}
+                className={`${getPacketColor(packet.type)} px-2 py-1 rounded text-sm cursor-pointer ${selectedPacket?.id === packet.id ? 'ring-2 ring-yellow-400' : ''}`}
                 onClick={() => setSelectedPacket(packet)}
               >
                 {packet.type}: {vms.find(vm => vm.id === packet.from)?.name} → {packet.to === -1 ? 'Broadcast' : vms.find(vm => vm.id === packet.to)?.name}
