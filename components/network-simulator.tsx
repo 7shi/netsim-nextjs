@@ -244,7 +244,7 @@ export function NetworkSimulator() {
   }, [packets])
 
   return (
-    <div className="flex flex-col h-screen max-h-[calc(100vh-20px)]" ref={containerRef}>
+    <div className="flex flex-col h-screen" ref={containerRef}>
       <div className="flex-1 overflow-auto p-4">
         <h1 className="text-2xl font-bold mb-4">Network Simulator</h1>
         <Button onClick={addVM} className="mb-4">Add Virtual Machine</Button>
@@ -338,9 +338,9 @@ export function NetworkSimulator() {
         </div>
       </div>
       <div className="h-1/3 bg-gray-200 p-4 flex">
-        <div className="w-1/2 pr-2">
+        <div className="w-1/2 pr-2 flex flex-col">
           <h2 className="text-xl font-semibold mb-2">Network Packets</h2>
-          <div ref={packetListRef} className="h-full overflow-auto space-y-2">
+          <div ref={packetListRef} className="flex-1 overflow-auto space-y-2">
             {packets.map((packet) => (
               <div
                 key={packet.id}
@@ -352,9 +352,9 @@ export function NetworkSimulator() {
             ))}
           </div>
         </div>
-        <div className="w-1/2 pl-2">
+        <div className="w-1/2 pl-2 flex flex-col">
           <h2 className="text-xl font-semibold mb-2">Packet Hex Dump</h2>
-          <div className="h-full overflow-auto bg-white p-2 rounded">
+          <div className="flex-1 overflow-auto bg-white p-2 rounded">
             {selectedPacket ? (
               <pre className="text-xs font-mono">{selectedPacket.data}</pre>
             ) : (
