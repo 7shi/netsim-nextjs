@@ -43,6 +43,7 @@ export function NetworkSimulator() {
   const vmRefs = useRef<{ [key: number]: HTMLDivElement | null }>({})
   const packetListRef = useRef<HTMLDivElement>(null)
   const zapRefs = useRef<{ [key: string]: SVGSVGElement | null }>({})
+  const [dhcpIp, setDhcpIp] = useState(11)
 
   const generateMACAddress = () => {
     return Array.from({length: 6}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(':');
@@ -232,8 +233,12 @@ export function NetworkSimulator() {
     await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge')
 
     // Assign IP address
-    const newIp = `192.168.1.${Math.floor(Math.random() * 254) + 2}`
+    const newIp = `192.168.1.${dhcpIp}`
     setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: newIp } : vm))
+    setDhcpIp(prevIp => {
+      const nextIp = prevIp + 1
+      return nextIp > 254 ? 11 : nextIp
+    })
   }
 
   const sendPing = async () => {
