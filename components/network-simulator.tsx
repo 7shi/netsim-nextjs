@@ -34,6 +34,27 @@ type Position = {
   y: number
 }
 
+const assignedIps = new Set<number>();
+
+const getNextAvailableIp = (): string => {
+  for (let i = 11; i <= 254; i++) {
+    if (!assignedIps.has(i)) {
+      return `192.168.1.${i}`
+    }
+  }
+  throw new Error("No available IP addresses")
+}
+
+const reserveIp = (ip: string) => {
+  const lastOctet = parseInt(ip.split('.')[3])
+  assignedIps.add(lastOctet)
+}
+
+const releaseIp = (ip: string) => {
+  const lastOctet = parseInt(ip.split('.')[3])
+  assignedIps.delete(lastOctet)
+}
+
 export function NetworkSimulator() {
   const [vms, setVms] = useState<VM[]>([]);
   const [nextId, setNextId] = useState(1)
@@ -45,7 +66,6 @@ export function NetworkSimulator() {
   const vmRefs = useRef<{ [key: number]: HTMLDivElement | null }>({})
   const packetListRef = useRef<HTMLDivElement>(null)
   const zapRefs = useRef<{ [key: string]: SVGSVGElement | null }>({})
-  const [dhcpIp, setDhcpIp] = useState(11)
 
   const generateMACAddress = () => {
     return Array.from({length: 6}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join(':');
@@ -65,7 +85,13 @@ export function NetworkSimulator() {
   }
 
   const removeVM = (id: number) => {
-    setVms(vms.filter(vm => vm.isDHCP || vm.id !== id))
+    setVms(prevVms => {
+      const vmToRemove = prevVms.find(vm => vm.id === id)
+      if (vmToRemove && vmToRemove.ip) {
+        releaseIp(vmToRemove.ip)
+      }
+      return prevVms.filter(vm => vm.isDHCP || vm.id !== id)
+    })
     if (selectedVM === id) setSelectedVM(null)
     if (targetVM === id) setTargetVM(null)
   }
@@ -300,7 +326,7 @@ Destination: ${destIp}`
     await sendPacket(vmId, null, 'DHCP Discover', discoverPacket)
 
     // Generate the IP address to be assigned
-    const offeredIp = `192.168.1.${dhcpIp}`
+    const offeredIp = getNextAvailableIp()
 
     // DHCP Offer
     const offerPacket = generateDHCPPacket('Offer', clientVM.mac, dhcpServer.mac, dhcpServer.ip, offeredIp)
@@ -312,15 +338,13 @@ Destination: ${destIp}`
     await sendPacket(vmId, dhcpServer.id, 'DHCP Request', requestPacket)
 
     // DHCP Acknowledge
-    const ackPacket = generateDHCPPacket('Acknowledge', clientVM.mac, dhcpServer.mac, dhcpServer.ip, offeredIp)
-    setDhcpIp(prevIp => {
-      const nextIp = prevIp + 1
-      return nextIp > 254 ? 11 : nextIp
-    })
+    const providedIp = getNextAvailableIp()
+    reserveIp(providedIp)
+    const ackPacket = generateDHCPPacket('Acknowledge', clientVM.mac, dhcpServer.mac, dhcpServer.ip, providedIp)
     await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', ackPacket)
 
     // Assign IP address and update ARP table
-    setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: offeredIp } : vm))
+    setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: providedIp } : vm))
   }
 
   const sendPing = async () => {
