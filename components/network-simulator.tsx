@@ -313,14 +313,14 @@ Destination: ${destIp}`
 
     // DHCP Acknowledge
     const ackPacket = generateDHCPPacket('Acknowledge', clientVM.mac, dhcpServer.mac, dhcpServer.ip, offeredIp)
-    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', ackPacket)
-
-    // Assign IP address and update ARP table
-    setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: offeredIp } : vm))
     setDhcpIp(prevIp => {
       const nextIp = prevIp + 1
       return nextIp > 254 ? 11 : nextIp
     })
+    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', ackPacket)
+
+    // Assign IP address and update ARP table
+    setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: offeredIp } : vm))
   }
 
   const sendPing = async () => {
