@@ -211,41 +211,11 @@ Source: ${sourceIp}
 Destination: ${destIp}`
   }
 
-  const sendPacket = async (from: number, to: number | null, type: PacketType, data?: any) => {
+  const sendPacket = async (from: number, to: number | null, type: PacketType, packetData: string) => {
     const fromVM = vms.find(vm => vm.id === from)
     const toVM = to !== null ? vms.find(vm => vm.id === to) : null
 
-    let packetData: string
-    switch (type) {
-      case 'DHCP Discover':
-        packetData = generateDHCPPacket('Discover', fromVM!.mac, '00:00:00:00:00:00')
-        break
-      case 'DHCP Offer':
-        packetData = generateDHCPPacket('Offer', toVM!.mac, fromVM!.mac, fromVM!.ip, data.offeredIp)
-        break
-      case 'DHCP Request':
-        packetData = generateDHCPPacket('Request', fromVM!.mac, '00:00:00:00:00:00', undefined, data.offeredIp)
-        break
-      case 'DHCP Acknowledge':
-        packetData = generateDHCPPacket('Acknowledge', toVM!.mac, fromVM!.mac, fromVM!.ip, data.offeredIp)
-        break
-      case 'ARP Request':
-        packetData = generateARPPacket('Request', fromVM!.mac, fromVM!.ip!, '00:00:00:00:00:00', data.targetIp)
-        break
-      case 'ARP Reply':
-        packetData = generateARPPacket('Reply', fromVM!.mac, fromVM!.ip!, toVM!.mac, toVM!.ip!)
-        break
-      case 'ICMP Request':
-        packetData = generateICMPPacket('Request', fromVM!.mac, toVM!.mac, fromVM!.ip!, toVM!.ip!)
-        break
-      case 'ICMP Reply':
-        packetData = generateICMPPacket('Reply', fromVM!.mac, toVM!.mac, fromVM!.ip!, toVM!.ip!)
-        break
-      default:
-        packetData = 'Unknown packet type'
-    }
-
-    const packet = { 
+    const packet = {
       id: Date.now(),
       from,
       to: to ?? -1,
@@ -318,21 +288,28 @@ Destination: ${destIp}`
     const dhcpServer = vms.find(vm => vm.isDHCP)
     if (!dhcpServer || !dhcpServer.ip) return
 
+    const clientVM = vms.find(vm => vm.id === vmId)
+    if (!clientVM) return
+
     // DHCP Discover (broadcast)
-    await sendPacket(vmId, null, 'DHCP Discover')
+    const discoverPacket = generateDHCPPacket('Discover', clientVM.mac, '00:00:00:00:00:00')
+    await sendPacket(vmId, null, 'DHCP Discover', discoverPacket)
 
     // 割り当て予定のIPアドレスを生成
     const offeredIp = `192.168.1.${dhcpIp}`
 
     // DHCP Offer
-    await sendPacket(dhcpServer.id, vmId, 'DHCP Offer', { offeredIp })
+    const offerPacket = generateDHCPPacket('Offer', clientVM.mac, dhcpServer.mac, dhcpServer.ip, offeredIp)
+    await sendPacket(dhcpServer.id, vmId, 'DHCP Offer', offerPacket)
     updateARPTable(vmId, dhcpServer.ip, dhcpServer.mac)
 
     // DHCP Request (unicast to DHCP server)
-    await sendPacket(vmId, dhcpServer.id, 'DHCP Request', { offeredIp })
+    const requestPacket = generateDHCPPacket('Request', clientVM.mac, dhcpServer.mac, undefined, offeredIp)
+    await sendPacket(vmId, dhcpServer.id, 'DHCP Request', requestPacket)
 
     // DHCP Acknowledge
-    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', { offeredIp })
+    const ackPacket = generateDHCPPacket('Acknowledge', clientVM.mac, dhcpServer.mac, dhcpServer.ip, offeredIp)
+    await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', ackPacket)
 
     // Assign IP address and update ARP table
     setVms(prevVms => prevVms.map(vm => vm.id === vmId ? { ...vm, ip: offeredIp } : vm))
@@ -356,13 +333,22 @@ Destination: ${destIp}`
       const targetVMData = vms.find(vm => vm.id === targetVM)
       if (sourceVM && targetVMData && sourceVM.ip && targetVMData.ip) {
         if (!sourceVM.arpTable[targetVMData.ip] || sourceVM.arpTable[targetVMData.ip].expires < Date.now()) {
-          await sendPacket(selectedVM, null, 'ARP Request', { targetIp: targetVMData.ip })
-          await sendPacket(targetVM, selectedVM, 'ARP Reply')
+          const arpRequestPacket = generateARPPacket('Request', sourceVM.mac, sourceVM.ip, '00:00:00:00:00:00', targetVMData.ip)
+          await sendPacket(selectedVM, null, 'ARP Request', arpRequestPacket)
+
+          const arpReplyPacket = generateARPPacket('Reply', targetVMData.mac, targetVMData.ip, sourceVM.mac, sourceVM.ip)
+          await sendPacket(targetVM, selectedVM, 'ARP Reply', arpReplyPacket)
+
           updateARPTable(selectedVM, targetVMData.ip, targetVMData.mac)
         }
-        await sendPacket(selectedVM, targetVM, 'ICMP Request')
+
+        const icmpRequestPacket = generateICMPPacket('Request', sourceVM.mac, targetVMData.mac, sourceVM.ip, targetVMData.ip)
+        await sendPacket(selectedVM, targetVM, 'ICMP Request', icmpRequestPacket)
+
         updateARPTable(targetVM, sourceVM.ip, sourceVM.mac)
-        await sendPacket(targetVM, selectedVM, 'ICMP Reply')
+
+        const icmpReplyPacket = generateICMPPacket('Reply', targetVMData.mac, sourceVM.mac, targetVMData.ip, sourceVM.ip)
+        await sendPacket(targetVM, selectedVM, 'ICMP Reply', icmpReplyPacket)
       }
     }
   }
