@@ -1,5 +1,13 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Online Demo
+
+https://codepen.io/7shi/embed/qBzLypx?default-tab=result
+
+## Main Source
+
+The main source code for this project is located in the `components/network-simulator.tsx` file. This file contains the core logic and UI components for the network simulator.
+
 ## Getting Started
 
 First, run the development server:
