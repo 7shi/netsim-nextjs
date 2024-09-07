@@ -13,6 +13,9 @@ dev:
 build:
 	npx next build
 
+pyhttp:
+	python -m http.server -d out 3000
+
 clean:
 	rm -f $(TARGET)
 
