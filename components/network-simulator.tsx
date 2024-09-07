@@ -70,12 +70,10 @@ export function NetworkSimulator() {
   }
 
   const updateVMOS = async (id: number, os: OS) => {
-    setVms(prevVms => prevVms.map(vm => vm.id === id ? { ...vm, os, arpTable: {} } : vm))
+    setVms(prevVms => prevVms.map(vm => vm.id === id ? { ...vm, os } : vm))
 
     if (os !== null && os !== 'DHCP') {
       await runDHCPProcess(id)
-    } else {
-      setVms(prevVms => prevVms.map(vm => vm.id === id ? { ...vm, ip: undefined } : vm))
     }
   }
 
@@ -281,6 +279,14 @@ Destination: ${destIp}`
     }
   }
 
+  const updateARPTable = (vmId: number, ip: string, mac: string) => {
+    setVms(prevVms => prevVms.map(vm =>
+      vm.id === vmId
+        ? { ...vm, arpTable: { ...vm.arpTable, [ip]: { mac, expires: Date.now() + 300000 } } }
+        : vm
+    ))
+  }
+
   const runDHCPProcess = async (vmId: number) => {
     const dhcpServer = vms.find(vm => vm.isDHCP)
     if (!dhcpServer || !dhcpServer.ip) return
@@ -316,14 +322,6 @@ Destination: ${destIp}`
     })
   }
 
-  const updateARPTable = (vmId: number, ip: string, mac: string) => {
-    setVms(prevVms => prevVms.map(vm =>
-      vm.id === vmId
-        ? { ...vm, arpTable: { ...vm.arpTable, [ip]: { mac, expires: Date.now() + 300000 } } }
-        : vm
-    ))
-  }
-
   const sendPing = async () => {
     if (selectedVM !== null && targetVM !== null) {
       const sourceVM = vms.find(vm => vm.id === selectedVM)
@@ -333,6 +331,13 @@ Destination: ${destIp}`
           const arpRequestPacket = generateARPPacket('Request', sourceVM.mac, sourceVM.ip, '00:00:00:00:00:00', targetVMData.ip)
           await sendPacket(selectedVM, null, 'ARP Request', arpRequestPacket)
 
+          // Update ARP tables for all VMs except the source VM and DHCP server
+          vms.forEach(vm => {
+            if (vm.id !== selectedVM && vm.os !== null && vm.os !== 'DHCP') {
+              updateARPTable(vm.id, sourceVM.ip!, sourceVM.mac)
+            }
+          })
+
           const arpReplyPacket = generateARPPacket('Reply', targetVMData.mac, targetVMData.ip, sourceVM.mac, sourceVM.ip)
           await sendPacket(targetVM, selectedVM, 'ARP Reply', arpReplyPacket)
 
@@ -341,8 +346,6 @@ Destination: ${destIp}`
 
         const icmpRequestPacket = generateICMPPacket('Request', sourceVM.mac, targetVMData.mac, sourceVM.ip, targetVMData.ip)
         await sendPacket(selectedVM, targetVM, 'ICMP Request', icmpRequestPacket)
-
-        updateARPTable(targetVM, sourceVM.ip, sourceVM.mac)
 
         const icmpReplyPacket = generateICMPPacket('Reply', targetVMData.mac, sourceVM.mac, targetVMData.ip, sourceVM.ip)
         await sendPacket(targetVM, selectedVM, 'ICMP Reply', icmpReplyPacket)
