@@ -34,25 +34,13 @@ type Position = {
   y: number
 }
 
-const assignedIps = new Set<number>();
+let dhcpIp = 11
 
-const getNextAvailableIp = (): string => {
-  for (let i = 11; i <= 254; i++) {
-    if (!assignedIps.has(i)) {
-      return `192.168.1.${i}`
-    }
-  }
-  throw new Error("No available IP addresses")
-}
-
-const reserveIp = (ip: string) => {
-  const lastOctet = parseInt(ip.split('.')[3])
-  assignedIps.add(lastOctet)
-}
-
-const releaseIp = (ip: string) => {
-  const lastOctet = parseInt(ip.split('.')[3])
-  assignedIps.delete(lastOctet)
+const getNextAvailableIp = (increment: boolean): string | null => {
+  if (dhcpIp > 254) return null;
+  const ip = `192.168.1.${dhcpIp}`
+  if (increment) dhcpIp++
+  return ip
 }
 
 export function NetworkSimulator() {
@@ -85,13 +73,7 @@ export function NetworkSimulator() {
   }
 
   const removeVM = (id: number) => {
-    setVms(prevVms => {
-      const vmToRemove = prevVms.find(vm => vm.id === id)
-      if (vmToRemove && vmToRemove.ip) {
-        releaseIp(vmToRemove.ip)
-      }
-      return prevVms.filter(vm => vm.isDHCP || vm.id !== id)
-    })
+    setVms(prevVms => prevVms.filter(vm => vm.isDHCP || vm.id !== id))
     if (selectedVM === id) setSelectedVM(null)
     if (targetVM === id) setTargetVM(null)
   }
@@ -326,7 +308,8 @@ Destination: ${destIp}`
     await sendPacket(vmId, null, 'DHCP Discover', discoverPacket)
 
     // Generate the IP address to be assigned
-    const offeredIp = getNextAvailableIp()
+    const offeredIp = getNextAvailableIp(false)
+    if (!offeredIp) return
 
     // DHCP Offer
     const offerPacket = generateDHCPPacket('Offer', clientVM.mac, dhcpServer.mac, dhcpServer.ip, offeredIp)
@@ -338,8 +321,8 @@ Destination: ${destIp}`
     await sendPacket(vmId, dhcpServer.id, 'DHCP Request', requestPacket)
 
     // DHCP Acknowledge
-    const providedIp = getNextAvailableIp()
-    reserveIp(providedIp)
+    const providedIp = getNextAvailableIp(true)
+    if (!providedIp) return
     const ackPacket = generateDHCPPacket('Acknowledge', clientVM.mac, dhcpServer.mac, dhcpServer.ip, providedIp)
     await sendPacket(dhcpServer.id, vmId, 'DHCP Acknowledge', ackPacket)
 
