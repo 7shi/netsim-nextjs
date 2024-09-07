@@ -212,9 +212,6 @@ Destination: ${destIp}`
   }
 
   const sendPacket = async (from: number, to: number | null, type: PacketType, packetData: string) => {
-    const fromVM = vms.find(vm => vm.id === from)
-    const toVM = to !== null ? vms.find(vm => vm.id === to) : null
-
     const packet = {
       id: Date.now(),
       from,
