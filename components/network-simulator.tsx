@@ -477,7 +477,7 @@ Destination: ${destIp}`
           )}
         </div>
       </div>
-      <div className="h-1/3 bg-gray-100 p-4 flex">
+      <div className="h-1/2 bg-gray-100 p-4 flex">
         <div className="w-1/2 pr-2 flex flex-col">
           <h2 className="text-xl font-semibold mb-2">Network Packets</h2>
           <div ref={packetListRef} className="flex-1 overflow-auto space-y-2 bg-white">
