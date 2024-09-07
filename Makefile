@@ -1,6 +1,6 @@
 TARGET = out/index-cdn.html
-LATEST_TAG := $(shell node -p "require('./package.json').version")
-URL = https://cdn.jsdelivr.net/gh/7shi/netsim-nextjs@$(LATEST_TAG)
+VERSION := $(shell node -p "require('./package.json').version")
+URL = https://cdn.jsdelivr.net/gh/7shi/netsim-nextjs@$(VERSION)
 
 all: $(TARGET)
 
