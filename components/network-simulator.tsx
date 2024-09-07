@@ -295,7 +295,7 @@ Destination: ${destIp}`
     const discoverPacket = generateDHCPPacket('Discover', clientVM.mac, '00:00:00:00:00:00')
     await sendPacket(vmId, null, 'DHCP Discover', discoverPacket)
 
-    // 割り当て予定のIPアドレスを生成
+    // Generate the IP address to be assigned
     const offeredIp = `192.168.1.${dhcpIp}`
 
     // DHCP Offer
