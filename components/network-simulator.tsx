@@ -116,8 +116,8 @@ export function NetworkSimulator() {
     const animate = (currentTime: number) => {
       const elapsedTime = currentTime - startTime
       const progress = Math.min(elapsedTime / duration, 1)
-      const easeProgress = progress < 0.5 
-        ? 4 * progress * progress * progress 
+      const easeProgress = progress < 0.5
+        ? 4 * progress * progress * progress
         : 1 - Math.pow(-2 * progress + 2, 3) / 2 // Cubic easing
 
       const r = element.getBoundingClientRect()
@@ -412,8 +412,8 @@ Destination: ${destIp}`
               </CardContent>
             </Card>
           ))}
-          {vms.map(fromVM => 
-            vms.map(toVM => 
+          {vms.map(fromVM =>
+            vms.map(toVM =>
               fromVM.id !== toVM.id && (
                 <Zap
                   key={`zap-${fromVM.id}-${toVM.id}`}
