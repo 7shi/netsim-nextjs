@@ -371,7 +371,39 @@ Destination: ${destIp}`
     <div className="flex flex-col h-screen" ref={containerRef}>
       <div className="flex-1 overflow-auto p-4">
         <h1 className="text-2xl font-bold mb-4">Network Simulator</h1>
-        <Button onClick={addVM} className="mb-4">Add Virtual Machine</Button>
+        <div className="flex items-center gap-4 mb-4">
+          <Button onClick={addVM}>Add Virtual Machine</Button>
+          <Select
+            value={selectedVM?.toString() || ''}
+            onValueChange={(value) => updateSelectedVM(Number(value))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select source VM" />
+            </SelectTrigger>
+            <SelectContent>
+              {vms.filter(vm => vm.os !== null && vm.os !== 'DHCP').map(vm => (
+                <SelectItem key={vm.id} value={vm.id.toString()}>{vm.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span>→</span>
+          <Select
+            value={targetVM?.toString() || ''}
+            onValueChange={(value) => setTargetVM(Number(value))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select target VM" />
+            </SelectTrigger>
+            <SelectContent>
+              {vms.filter(vm => vm.id !== selectedVM && vm.os !== null).map(vm => (
+                <SelectItem key={vm.id} value={vm.id.toString()}>{vm.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={sendPing} disabled={selectedVM === null || targetVM === null}>
+            Ping
+          </Button>
+        </div>
         <div className="flex flex-wrap gap-4 mb-8 relative">
           {vms.map(vm => (
             <Card key={vm.id} className="p-2 w-48" ref={el => {
@@ -443,40 +475,6 @@ Destination: ${destIp}`
               )
             )
           )}
-        </div>
-      </div>
-      <div className="p-4 border-t border-gray-200">
-        <div className="flex items-center gap-4">
-          <Select
-            value={selectedVM?.toString() || ''}
-            onValueChange={(value) => updateSelectedVM(Number(value))}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select source VM" />
-            </SelectTrigger>
-            <SelectContent>
-              {vms.filter(vm => vm.os !== null && vm.os !== 'DHCP').map(vm => (
-                <SelectItem key={vm.id} value={vm.id.toString()}>{vm.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span>→</span>
-          <Select
-            value={targetVM?.toString() || ''}
-            onValueChange={(value) => setTargetVM(Number(value))}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select target VM" />
-            </SelectTrigger>
-            <SelectContent>
-              {vms.filter(vm => vm.id !== selectedVM && vm.os !== null).map(vm => (
-                <SelectItem key={vm.id} value={vm.id.toString()}>{vm.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={sendPing} disabled={selectedVM === null || targetVM === null}>
-            Ping
-          </Button>
         </div>
       </div>
       <div className="h-1/3 bg-gray-100 p-4 flex">
