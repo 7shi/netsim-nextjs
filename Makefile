@@ -1,5 +1,5 @@
 TARGET = out/index-cdn.html
-LATEST_TAG := $(shell git describe --tags --abbrev=0)
+LATEST_TAG := $(shell node -p "require('./package.json').version")
 URL = https://cdn.jsdelivr.net/gh/7shi/netsim-nextjs@$(LATEST_TAG)
 
 all: $(TARGET)
