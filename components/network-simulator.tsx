@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Laptop, Monitor, X, Zap, Server, HelpCircle } from "lucide-react"
+import pkg from '../package.json'
 
 type OS = 'OS1' | 'OS2' | 'DHCP' | null
 
@@ -370,7 +371,13 @@ Destination: ${destIp}`
   return (
     <div className="flex flex-col h-screen" ref={containerRef}>
       <div className="flex-1 overflow-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Network Simulator</h1>
+        <h1 className="text-2xl font-bold mb-4">
+          Network Simulator&nbsp;
+          <span className="text-sm font-normal text-gray-500">
+            v{pkg.version}&nbsp;
+            (<a href="https://github.com/7shi/netsim-nextjs" target="_blank" rel="noopener noreferrer">GitHub</a>)
+          </span>
+        </h1>
         <div className="flex items-center gap-4 mb-4">
           <Button onClick={addVM}>Add Virtual Machine</Button>
           <Select
