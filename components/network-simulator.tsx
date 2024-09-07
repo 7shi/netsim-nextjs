@@ -353,6 +353,13 @@ Destination: ${destIp}`
     }
   }
 
+  const updateSelectedVM = (newSelectedVM: number | null) => {
+    setSelectedVM(newSelectedVM)
+    if (newSelectedVM === targetVM) {
+      setTargetVM(selectedVM)
+    }
+  }
+
   useEffect(() => {
     if (packetListRef.current) {
       packetListRef.current.scrollTop = packetListRef.current.scrollHeight
@@ -441,7 +448,7 @@ Destination: ${destIp}`
         <div className="flex items-center gap-4">
           <Select
             value={selectedVM?.toString() || ''}
-            onValueChange={(value) => setSelectedVM(Number(value))}
+            onValueChange={(value) => updateSelectedVM(Number(value))}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select source VM" />
