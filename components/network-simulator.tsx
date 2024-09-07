@@ -346,6 +346,7 @@ Destination: ${destIp}`
 
         const icmpRequestPacket = generateICMPPacket('Request', sourceVM.mac, targetVMData.mac, sourceVM.ip, targetVMData.ip)
         await sendPacket(selectedVM, targetVM, 'ICMP Request', icmpRequestPacket)
+        updateARPTable(targetVM, sourceVM.ip, sourceVM.mac)
 
         const icmpReplyPacket = generateICMPPacket('Reply', targetVMData.mac, sourceVM.mac, targetVMData.ip, sourceVM.ip)
         await sendPacket(targetVM, selectedVM, 'ICMP Reply', icmpReplyPacket)
